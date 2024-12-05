@@ -1,16 +1,22 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text  # Импортируем text
-from database import get_db
+from fastapi import FastAPI
+from backend.routers import courses, users, enrollments  # Подключаем наши модули
+from backend.database import engine, Base  # Настройки базы данных
 
+# Создаем приложение FastAPI
 app = FastAPI()
 
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
+# Регистрируем роуты
+app.include_router(courses.router, prefix="/courses", tags=["Courses"])
+app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(enrollments.router, prefix="/enrollments", tags=["Enrollments"])
 
-@app.get("/test-db")
-async def test_db(db: AsyncSession = Depends(get_db)):
-    # Используем text() для текстового запроса
-    result = await db.execute(text("SELECT 1"))
-    return {"success": True, "result": result.scalar()}
+# Создание таблиц в базе данных при старте
+@app.on_event("startup")
+async def startup_event():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# Тестовый эндпоинт
+@app.get("/")
+async def root():
+    return {"message": "API is running!"}

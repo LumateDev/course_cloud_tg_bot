@@ -1,17 +1,18 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
-import os
-from datetime import datetime, timedelta
+import aiohttp
 
 # Загрузка переменных окружения
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BACKEND_URL = os.getenv("BACKEND_URL")
+ADMIN_USER_ID = os.getenv("ADMIN_USER_ID")
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
@@ -20,20 +21,18 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Пример данных для курсов с добавлением времени
-available_courses = [
-    {"id": 1, "name": "Курс 1", "start_time": datetime(2024, 12, 5, 10, 0)},
-    {"id": 2, "name": "Курс 2", "start_time": datetime(2024, 12, 6, 12, 0)},
-    {"id": 3, "name": "Курс 3", "start_time": datetime(2024, 12, 7, 14, 0)}
-]
 
-my_courses = [
-    {"id": 4, "name": "Мой курс 1", "start_time": datetime(2024, 12, 8, 16, 0)},
-    {"id": 5, "name": "Мой курс 2", "start_time": datetime(2024, 12, 9, 18, 0)}
-]
+# Функция для получения данных о курсах с бэкенда
+async def fetch_courses(endpoint: str):
+    """Получение списка курсов с бэкенда."""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{BACKEND_URL}/{endpoint}") as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                logging.error(f"Ошибка при получении данных с бэкенда: {response.status}")
+                return []
 
-# Admin user
-admin_user_id =  567512385  # ID администратора (как получить ниже)
 
 # Функции для клавиатур
 def main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -48,7 +47,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
 def courses_keyboard(courses: list, back_callback: str) -> InlineKeyboardMarkup:
     """Клавиатура списка курсов."""
     buttons = [
-        [InlineKeyboardButton(text=course["name"], callback_data=f"course_{course['id']}")]
+        [InlineKeyboardButton(text=course["title"], callback_data=f"course_{course['id']}")]
         for course in courses
     ]
     buttons.append([InlineKeyboardButton(text="Назад", callback_data=back_callback)])
@@ -60,7 +59,14 @@ def course_management_keyboard(course_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Информация о курсе", callback_data=f"info_{course_id}")],
         [InlineKeyboardButton(text="Покинуть курс", callback_data=f"leave_{course_id}")],
-        [InlineKeyboardButton(text="Назад", callback_data="my_courses")]
+        [InlineKeyboardButton(text="Назад", callback_data=f"course_{course_id}")]
+    ])
+
+
+def course_info_keyboard(course_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура только с кнопкой 'Назад' для раздела 'Информация о курсе'."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data=f"course_{course_id}")]
     ])
 
 
@@ -82,6 +88,7 @@ async def command_start_handler(message: Message) -> None:
 @dp.callback_query(lambda c: c.data == "available_courses")
 async def show_available_courses(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Доступные курсы'."""
+    available_courses = await fetch_courses("courses")
     await callback.message.edit_text(
         text="Доступные курсы:",
         reply_markup=courses_keyboard(available_courses, back_callback="main_menu")
@@ -91,6 +98,7 @@ async def show_available_courses(callback: CallbackQuery) -> None:
 @dp.callback_query(lambda c: c.data == "my_courses")
 async def show_my_courses(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Мои курсы'."""
+    my_courses = await fetch_courses("courses")  # Здесь также используем правильный эндпоинт
     await callback.message.edit_text(
         text="Мои курсы:",
         reply_markup=courses_keyboard(my_courses, back_callback="main_menu")
@@ -102,12 +110,13 @@ async def manage_course(callback: CallbackQuery) -> None:
     """Обработчик выбора конкретного курса."""
     course_id = int(callback.data.split("_")[1])
 
-    # Проверяем, что курс с таким ID существует в одном из меню
-    course = next((course for course in available_courses + my_courses if course["id"] == course_id), None)
+    # Получаем информацию о выбранном курсе
+    available_courses = await fetch_courses("courses")
+    course = next((course for course in available_courses if course["id"] == course_id), None)
 
     if course:
         await callback.message.edit_text(
-            text=f"Управление курсом {course['name']}:\nДата начала: {course['start_time'].strftime('%d-%m-%Y %H:%M')}",
+            text=f"Управление курсом {course['title']}:\nОписание: {course['description']}",
             reply_markup=course_management_keyboard(course_id)
         )
     else:
@@ -118,12 +127,13 @@ async def manage_course(callback: CallbackQuery) -> None:
 async def show_course_info(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Информация о курсе'."""
     course_id = int(callback.data.split("_")[1])
-    course = next((course for course in available_courses + my_courses if course["id"] == course_id), None)
+    available_courses = await fetch_courses("courses")
+    course = next((course for course in available_courses if course["id"] == course_id), None)
 
     if course:
         await callback.message.edit_text(
-            text=f"Информация о курсе {course['name']}:\nОписание курса...\nДата начала: {course['start_time'].strftime('%d-%m-%Y %H:%M')}",
-            reply_markup=course_management_keyboard(course_id)
+            text=f"Информация о курсе {course['title']}:\nОписание: {course['description']}",
+            reply_markup=course_info_keyboard(course_id)  # Используем клавиатуру с кнопкой "Назад"
         )
     else:
         await callback.message.answer("Информация о курсе не найдена.")
@@ -133,14 +143,14 @@ async def show_course_info(callback: CallbackQuery) -> None:
 async def enroll_course(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Записаться на курс'."""
     course_id = int(callback.data.split("_")[1])
+    available_courses = await fetch_courses("courses")
     course = next((course for course in available_courses if course["id"] == course_id), None)
 
     if course:
-        # Добавляем курс в список "Мои курсы"
-        my_courses.append(course)
-
+        # Логика записи на курс, добавление в "Мои курсы"
+        # Вместо этого здесь можно добавить курс в базу данных пользователя через API
         await callback.message.edit_text(
-            text=f"Вы успешно записались на курс {course['name']}! Начало курса: {course['start_time'].strftime('%d-%m-%Y %H:%M')}",
+            text=f"Вы успешно записались на курс {course['title']}!",
             reply_markup=main_menu_keyboard()
         )
     else:
@@ -152,11 +162,8 @@ async def leave_course(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Покинуть курс'."""
     course_id = int(callback.data.split("_")[1])
 
-    # Удаляем курс из списка "Мои курсы"
-    global my_courses
-    my_courses = [course for course in my_courses if course["id"] != course_id]
-
-    # Отправляем сообщение пользователю о том, что он покинул курс
+    # Логика удаления курса из "Моих курсов"
+    # Здесь можно удалить курс из базы данных пользователя через API
     await callback.message.edit_text(
         text=f"Вы покинули курс с ID {course_id}.",
         reply_markup=main_menu_keyboard()
@@ -167,7 +174,8 @@ async def leave_course(callback: CallbackQuery) -> None:
 async def contact_admin(callback: CallbackQuery) -> None:
     """Обработчик кнопки 'Связаться с администратором'."""
     user_id = callback.from_user.id
-    await bot.send_message(admin_user_id, f"Пользователь {callback.from_user.full_name} ({user_id}) хочет связаться с вами.")
+    await bot.send_message(ADMIN_USER_ID,
+                           f"Пользователь {callback.from_user.full_name} ({user_id}) хочет связаться с вами.")
     await callback.message.answer(
         "Ваше сообщение отправлено администратору. Он скоро свяжется с вами!"
     )

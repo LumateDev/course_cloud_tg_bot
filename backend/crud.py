@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from models import Course, User, Enrollment
-from schemas import CourseCreate, UserCreate, EnrollmentCreate
+from backend.models import Course, User, Enrollment
+from backend.schemas import CourseCreate, UserCreate, EnrollmentCreate
 
 # CRUD для курсов
 async def create_course(db: AsyncSession, course: CourseCreate):
