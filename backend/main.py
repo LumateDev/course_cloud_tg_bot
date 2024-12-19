@@ -1,7 +1,6 @@
 # backend/main.py
 from fastapi import FastAPI
 from backend.routers import courses, users, enrollments  # Подключаем роутеры
-from backend.database import engine, Base  # Настройки базы данных
 
 # Создаем приложение FastAPI
 app = FastAPI()

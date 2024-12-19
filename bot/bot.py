@@ -1,8 +1,9 @@
 import asyncio
+import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.session import aiohttp
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
 from config import BOT_TOKEN, ADMIN_USER_ID
 from services import fetch_courses, get_course_by_id, get_user_by_telegram_id, create_or_update_user, \
     fetch_user_courses, create_enrollment, check_existing_enrollment, remove_enrollment
@@ -16,6 +17,28 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+
+async def set_bot_photo(chat_id: int):
+    # Получаем картинку через GET запрос
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://storage.yandexcloud.net/test-perry-bot-bucket/avatar.png") as response:
+            if response.status == 200:
+                # Сохраняем файл на диск
+                with open("avatar.png", "wb") as f:
+                    f.write(await response.read())  # Сохраняем данные картинки в файл
+
+                # Создаем объект InputFile из файла на диске
+                with open("avatar.png", "rb") as f:
+                    photo_file = InputFile(f, filename="avatar.png")
+
+                # Устанавливаем фото бота для текущего чата
+                await bot.set_chat_photo(photo=photo_file, chat_id=chat_id)
+                print("Bot avatar updated successfully.")
+
+                # Удаляем файл после использования
+                os.remove("avatar.png")
+            else:
+                print("Failed to retrieve the image.")
 
 # Основное меню
 def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
@@ -279,6 +302,8 @@ async def main() -> None:
     """Запуск бота."""
     await dp.start_polling(bot)
 
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nПрограмма завершена пользователем (KeyboardInterrupt).")

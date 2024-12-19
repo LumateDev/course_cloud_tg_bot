@@ -1,15 +1,36 @@
 services:
-  bot:
-    build:
-      context: ./bot
-    environment:
-      - BOT_TOKEN=${BOT_TOKEN}
-      - BACKEND_URL=${BACKEND_URL}
-    depends_on:
-      - backend
-
+  # FastAPI приложение
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: backend
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+      - ./certificates:/etc/ssl/certs  # Монтируем сертификаты в контейнер
+    env_file:
+      - ./.env
+    environment:
+      - SSL_CERT_PATH=/etc/ssl/certs/root.crt  # Указываем путь к сертификату
+    networks:
+      - backend_network
+
+  # Telegram бот
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    container_name: bot
+    env_file:
+      - ./.env
+    depends_on:
+      - backend
+    networks:
+      - backend_network
+
+
+networks:
+  backend_network:
+    driver: bridge

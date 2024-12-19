@@ -7,7 +7,7 @@ from ssl import create_default_context
 Base = declarative_base()
 
 ctx = create_default_context(
-    cafile="C:/Users/Alex/AppData/Roaming/postgresql/root.crt"
+    cafile=settings.SSL_CERT_PATH
 )
 
 
