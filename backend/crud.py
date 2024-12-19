@@ -138,6 +138,7 @@ async def get_enrollment_by_user_and_course(db: AsyncSession, user_id: int, cour
     enrollment = result.scalars().first()
     return enrollment
 
+
 # Функция для удаления записи
 async def remove_enrollment(db: AsyncSession, enrollment_id: int):
     print(f"Attempting to delete enrollment with ID: {enrollment_id}")

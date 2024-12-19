@@ -19,7 +19,7 @@ async def get_courses_for_user(telegram_id: int, db: AsyncSession = Depends(get_
 
 
 # Запись пользователя на курс
-@router.post("/enroll", response_model=schemas.EnrollmentResponse)
+@router.post("/enroll")
 async def enroll_user(enrollment_data: schemas.EnrollmentCreate, db: AsyncSession = Depends(get_db)):
     existing_enrollment = await crud.get_enrollment_by_user_and_course(
         db, enrollment_data.user_id, enrollment_data.course_id
@@ -27,11 +27,16 @@ async def enroll_user(enrollment_data: schemas.EnrollmentCreate, db: AsyncSessio
     if existing_enrollment:
         raise HTTPException(status_code=400, detail="User already enrolled in this course")
     enrollment = await crud.enroll_user_on_course(db, enrollment_data.course_id, enrollment_data.user_id)
-    return enrollment
+    costil_dict = {
+        "user_id": enrollment.user_id,
+        "course_id": enrollment.course_id,
+        "enrolled_at": enrollment.enrolled_at
+    }
+    return costil_dict
 
 
 # Удаление записи пользователя с курса
-@router.delete("/leave_enrollment/{user_id}/{course_id}", response_model=schemas.EnrollmentResponse)
+@router.delete("/leave_enrollment/{user_id}/{course_id}")
 async def remove_enrollment(user_id: int, course_id: int, db: AsyncSession = Depends(get_db)):
     enrollment = await crud.get_enrollment_by_user_and_course(db, user_id, course_id)
     if not enrollment:
@@ -39,4 +44,9 @@ async def remove_enrollment(user_id: int, course_id: int, db: AsyncSession = Dep
     enrollment = await crud.remove_enrollment(db, enrollment.id)
     if not enrollment:
         raise HTTPException(status_code=404, detail="Enrollment could not be removed")
-    return enrollment
+    costil_dict = {
+        "user_id": enrollment.user_id,
+        "course_id": enrollment.course_id,
+        "enrolled_at": enrollment.enrolled_at
+    }
+    return costil_dict

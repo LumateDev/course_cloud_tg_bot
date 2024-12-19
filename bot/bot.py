@@ -184,7 +184,14 @@ async def enroll_in_course(callback: CallbackQuery):
         enrollment = await create_enrollment(user['id'], course_id)
         if enrollment:
             logger.info(f"Пользователь с Telegram ID {user_telegram_id} успешно записан на курс {course_id}.")
-            await callback.answer(f"Вы успешно записались на курс: {course_id}!", show_alert=True)
+            await callback.answer(f"Вы успешно записались на курс!", show_alert=True)
+
+            # Возврат на главное меню
+            is_admin = user_telegram_id == ADMIN_USER_ID
+            await callback.message.edit_text(
+                text="Вы вернулись в главное меню.",
+                reply_markup=main_menu_keyboard(is_admin=is_admin)
+            )
         else:
             logger.error(f"Ошибка при записи пользователя с Telegram ID {user_telegram_id} на курс {course_id}.")
             await callback.answer("Произошла ошибка при записи. Попробуйте позже.", show_alert=True)
@@ -216,6 +223,11 @@ async def leave_course(callback: CallbackQuery):
         if result:
             logger.info(f"Пользователь с Telegram ID {user_telegram_id} покинул курс {course_id}.")
             await callback.answer(f"Вы покинули курс: {course_id}.", show_alert=True)
+            is_admin = user_telegram_id == ADMIN_USER_ID
+            await callback.message.edit_text(
+                text="Вы вернулись в главное меню.",
+                reply_markup=main_menu_keyboard(is_admin=is_admin)
+            )
         else:
             logger.error(f"Ошибка при удалении записи пользователя с Telegram ID {user_telegram_id} с курса {course_id}.")
             await callback.answer("Произошла ошибка при удалении. Попробуйте позже.", show_alert=True)

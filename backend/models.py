@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base  # Базовый класс для моделей
 
+
 class Course(Base):
     __tablename__ = "courses"
 
@@ -12,6 +13,7 @@ class Course(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     enrollments = relationship("Enrollment", back_populates="course")
+
 
 class User(Base):
     __tablename__ = "users"
@@ -23,6 +25,7 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     enrollments = relationship("Enrollment", back_populates="user")
+
 
 class Enrollment(Base):
     __tablename__ = "enrollments"

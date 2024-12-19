@@ -1,19 +1,25 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 from config import settings
+from ssl import create_default_context
 
 # Создаем базовый класс для моделей
 Base = declarative_base()
 
+ctx = create_default_context(
+    cafile="C:/Users/Alex/AppData/Roaming/postgresql/root.crt"
+)
+
+
 # Создание асинхронного движка для работы с PostgreSQL
-engine = create_async_engine(settings.DATABASE_URL, echo=True)
+engine = create_async_engine(settings.DATABASE_URL, connect_args={"ssl": ctx}, echo=True)
 
 # Создаем сессию AsyncSession
-AsyncSessionLocal = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    class_=AsyncSession,
     expire_on_commit=False
 )
+
 
 # Асинхронная зависимость для получения сессии
 async def get_db() -> AsyncSession:
