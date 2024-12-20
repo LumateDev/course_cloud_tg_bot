@@ -5,13 +5,15 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Копируем все файлы проекта в контейнер
-COPY ./backend .
+
 COPY ./requirements.txt .
 
 
 # Устанавливаем рабочие зависимости
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
+
+COPY ./backend .
 
 # Экспонируем порт для приложения FastAPI
 EXPOSE 8000
